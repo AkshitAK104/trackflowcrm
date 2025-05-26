@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional
 
 class LeadBase(BaseModel):
     name: str
@@ -53,7 +53,6 @@ class Order(OrderBase):
     id: int
     created_at: datetime
     updated_at: datetime
-    lead: Lead
     
     class Config:
         from_attributes = True

@@ -22,7 +22,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include API routers FIRST (before catch-all route)
+# Include API routers FIRST
 app.include_router(leads.router, prefix="/api")
 app.include_router(orders.router, prefix="/api")
 
@@ -72,7 +72,6 @@ async def startup_event():
 # Serve React app for non-API routes (MUST be last!)
 @app.get("/{full_path:path}")
 async def serve_react_app(full_path: str):
-    # This should only catch non-API routes
     static_dir = Path(__file__).parent.parent / "static"
     if static_dir.exists():
         return FileResponse(str(static_dir / "index.html"))

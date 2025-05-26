@@ -1,32 +1,15 @@
-# db.py
-
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
 import os
-from dotenv import load_dotenv
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
 
-# Load environment variables from .env file
-load_dotenv()
+# Use your existing Render PostgreSQL database
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres_xmeu_user:8Q65JnFx8Q5x5sbClSNUxGL1GukboD9V@dpg-d0qdcq6mcj7s73dune8g-a.oregon-postgres.render.com/postgres_xmeu")
 
-# Get the database URL from .env or fallback to SQLite
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./trackflow.db")
-
-# Create engine depending on DB type
-if DATABASE_URL.startswith("sqlite"):
-    engine = create_engine(
-        DATABASE_URL, connect_args={"check_same_thread": False}
-    )
-else:
-    engine = create_engine(DATABASE_URL)
-
-# Create a configured session class
+engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# Create a base class for model classes to inherit from
 Base = declarative_base()
 
-# Dependency to get DB session
 def get_db():
     db = SessionLocal()
     try:
