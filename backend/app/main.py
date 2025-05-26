@@ -1,6 +1,10 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+import os
+from pathlib import Path
 from .database import engine, Base, get_db
 from .routers import leads, orders
 from .models import Lead, Order
@@ -10,29 +14,25 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="TrackFlow CRM", version="1.0.0")
 
-# Configure CORS - Updated for production
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",  # Local development
-        "https://trackflow-api-l0vt.onrender.com",  # Your Render backend
-        "https://*.vercel.app",  # All Vercel deployments
-        "https://*.netlify.app"  # All Netlify deployments
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(leads.router)
-app.include_router(orders.router)
+# Include API routers with /api prefix
+app.include_router(leads.router, prefix="/api")
+app.include_router(orders.router, prefix="/api")
 
-@app.get("/")
-def read_root():
+# API endpoints
+@app.get("/api/")
+def api_root():
     return {"message": "TrackFlow CRM API"}
 
-@app.get("/dashboard")
+@app.get("/api/dashboard")
 def get_dashboard_stats(db: Session = Depends(get_db)):
     try:
         total_leads = db.query(Lead).count()
@@ -57,21 +57,25 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
+# Mount static files
+static_dir = Path(__file__).parent.parent / "static"
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(static_dir / "static")), name="static")
+    
+    @app.get("/{full_path:path}")
+    async def serve_react_app(full_path: str):
+        if full_path.startswith("api"):
+            raise HTTPException(status_code=404, detail="API endpoint not found")
+        return FileResponse(str(static_dir / "index.html"))
+else:
+    @app.get("/")
+    def read_root():
+        return {"message": "TrackFlow CRM API - Frontend not deployed"}
+
 @app.on_event("startup")
 async def startup_event():
-    """Initialize database tables on startup"""
     try:
         Base.metadata.create_all(bind=engine)
         print("✅ Database tables created successfully!")
     except Exception as e:
         print(f"❌ Error creating database tables: {e}")
-
-@app.get("/health")
-def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy", "service": "TrackFlow CRM API"}
-
-@app.get("/test")
-def test_endpoint():
-    """Test endpoint to verify API is working"""
-    return {"message": "API is working correctly", "timestamp": "2025-05-27"}
