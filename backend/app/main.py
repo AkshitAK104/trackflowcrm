@@ -3,7 +3,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-import os
 from pathlib import Path
 from .database import engine, Base, get_db
 from .routers import leads, orders
@@ -23,7 +22,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include API routers with /api prefix
+# Include API routers FIRST (before catch-all route)
 app.include_router(leads.router, prefix="/api")
 app.include_router(orders.router, prefix="/api")
 
@@ -61,16 +60,6 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
 static_dir = Path(__file__).parent.parent / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir / "static")), name="static")
-    
-    @app.get("/{full_path:path}")
-    async def serve_react_app(full_path: str):
-        if full_path.startswith("api"):
-            raise HTTPException(status_code=404, detail="API endpoint not found")
-        return FileResponse(str(static_dir / "index.html"))
-else:
-    @app.get("/")
-    def read_root():
-        return {"message": "TrackFlow CRM API - Frontend not deployed"}
 
 @app.on_event("startup")
 async def startup_event():
@@ -79,3 +68,13 @@ async def startup_event():
         print("✅ Database tables created successfully!")
     except Exception as e:
         print(f"❌ Error creating database tables: {e}")
+
+# Serve React app for non-API routes (MUST be last!)
+@app.get("/{full_path:path}")
+async def serve_react_app(full_path: str):
+    # This should only catch non-API routes
+    static_dir = Path(__file__).parent.parent / "static"
+    if static_dir.exists():
+        return FileResponse(str(static_dir / "index.html"))
+    else:
+        return {"message": "TrackFlow CRM API - Frontend not deployed"}
